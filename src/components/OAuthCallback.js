@@ -1,0 +1,149 @@
+import React, { useEffect, useState } from 'react';
+import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
+
+const OAuthCallback = () => {
+  const navigate = useNavigate();
+  const [token, setToken] = useState('');
+  const [isNewUser, setIsNewUser] = useState(null);
+  const [phone, setPhone] = useState('');
+  const [isVerified, setIsVerified] = useState(false);
+  const [verificationId, setVerificationId] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const fullUrl = window.location.href;
+    const queryString = fullUrl.includes('?')
+      ? fullUrl.split('?')[1]
+      : fullUrl.split('/oauth2/redirect')[1];
+
+    const params = new URLSearchParams(queryString);
+    const tokenParam = params.get('token');
+    const refreshTokenParam = params.get('refreshToken');
+    const isNewUserParam = params.get('isNewUser');
+
+    if (!tokenParam) {
+      setError('로그인 정보를 받아오지 못했어요. 다시 시도해 주세요.');
+      return;
+    }
+
+    localStorage.setItem('access_token', tokenParam);
+    if (refreshTokenParam) localStorage.setItem('refresh_token', refreshTokenParam);
+    setToken(tokenParam);
+    setIsNewUser(isNewUserParam === 'true');
+
+    if (isNewUserParam === 'false') {
+      try {
+        const payload = JSON.parse(atob(tokenParam.split('.')[1]));
+        if (payload.sub) localStorage.setItem('user_id', payload.sub);
+      } catch (e) {}
+      navigate('/home');
+    }
+  }, [navigate]);
+
+  const handleVerifyRequest = async () => {
+    if (phone.length < 10) {
+      alert('핸드폰 번호를 입력해주세요.');
+      return;
+    }
+    try {
+      const response = await window.PortOne.requestIdentityVerification({
+        storeId: 'store-2b359459-0d4c-42ce-ad4c-0f42ce8d8ab8',
+        channelKey: 'channel-key-fc7388b4-4a49-45d3-b282-aec1fa7f222d',
+        identityVerificationId: `verify-${Date.now()}`,
+        verificationRequest: { phoneNumber: phone },
+      });
+      if (response.code) {
+        alert(`본인인증 실패: ${response.message}`);
+      } else {
+        setVerificationId(response.identityVerificationId);
+        setIsVerified(true);
+      }
+    } catch (err) {
+      console.error(err);
+      alert('본인인증 중 오류가 발생했어요.');
+    }
+  };
+
+  const handleIntegrate = async () => {
+    setLoading(true);
+    try {
+      const response = await axios.post(
+        'https://illoon.cloud/api/auth/oauth2/integrate',
+        { verificationId },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (response.status === 200 || response.status === 201) {
+        if (response.data.accessToken) localStorage.setItem('access_token', response.data.accessToken);
+        if (response.data.userId) localStorage.setItem('user_id', String(response.data.userId));
+        navigate('/survey');
+      }
+    } catch (err) {
+      console.error(err);
+      setError('계정 연동에 실패했어요. 다시 시도해 주세요.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (error) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', gap: 16 }}>
+        <div style={{ fontSize: 16, color: '#4D5562' }}>{error}</div>
+        <button onClick={() => navigate('/login')}
+          style={{ background: '#2196F3', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 24px', cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>
+          로그인으로 돌아가기
+        </button>
+      </div>
+    );
+  }
+
+  if (isNewUser === null) return null;
+
+  return (
+    <div className="flex flex-col items-center w-[440px] mx-auto py-12">
+      <h2 className="text-[24px] font-bold text-[#333] mb-3">휴대폰 인증</h2>
+      <p className="text-[14px] text-[#6B7684] mb-10 text-center">
+        로그인이 완료됐어요! 😊<br />
+        본인 확인을 위해 휴대폰 인증이 필요해요.
+      </p>
+
+      <div className="w-full space-y-7">
+        <div className="space-y-2.5">
+          <label className="text-[15px] font-bold text-[#333]">휴대폰</label>
+          {!isVerified ? (
+            <div className="space-y-2.5">
+              <input
+                type="text"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="핸드폰 번호를 입력해주세요."
+                className="w-full h-[56px] px-5 bg-[#F2F4F7] rounded-[12px] outline-none"
+              />
+              <button onClick={handleVerifyRequest}
+                className="w-full h-[56px] bg-[#2196F3] text-white font-bold rounded-[12px]">
+                인증요청
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <div className="w-full h-[56px] px-5 bg-[#F2F4F7] rounded-[12px] flex items-center">{phone}</div>
+              <p className="text-[13px] text-[#8B95A1]">인증이 완료되었습니다.</p>
+            </div>
+          )}
+        </div>
+
+        <button
+          onClick={handleIntegrate}
+          disabled={!isVerified || loading}
+          className={`w-full h-[60px] font-bold rounded-[12px] text-[18px] transition-all ${isVerified && !loading ? 'bg-[#2196F3] text-white cursor-pointer' : 'bg-[#E5E8EB] text-[#B0B8C1] cursor-not-allowed'}`}
+        >
+          {loading ? '처리중...' : '가입 완료'}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+export default OAuthCallback;
