@@ -17,15 +17,19 @@ const Login = () => {
     }
     setIsLoading(true);
     try {
-      const response = await fetch('https://illoon.cloud/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({ email, password }),
-      });
+      let response;
+      try {
+        response = await fetch('https://illoon.cloud/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        });
+      } catch (networkErr) {
+        console.error('Network error:', networkErr);
+        alert('네트워크 오류: 서버에 연결할 수 없어요. CORS 문제일 수 있습니다.');
+        setIsLoading(false);
+        return;
+      }
       if (response.ok) {
         const data = await response.json();
         const { userId, accessToken } = data;
@@ -40,8 +44,8 @@ const Login = () => {
       } else {
         let msg = `서버 오류 (${response.status})`;
         try { const err = await response.json(); msg = err.message || err.error || msg; } catch {}
-        console.error('Login failed:', response.status, msg);
-        throw new Error(msg);
+        console.error('Login HTTP error:', response.status, msg);
+        alert(`로그인 실패 (${response.status}): ${msg}`);
       }
     } catch (error) {
       console.error(error);
