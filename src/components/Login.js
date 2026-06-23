@@ -48,7 +48,7 @@ const Login = () => {
         <div className="flex flex-col items-start">
           <img src="/logo.png" alt="ILLO-ON" className="w-[150px] mb-3" />
           <h1 className="text-[20px] font-bold text-[#333] leading-[1.3] tracking-tighter">
-            충청도 취업은<br />일로온!
+            부산 취업은<br />일로온!
           </h1>
         </div>
         <img src="/character.png" alt="character" className="w-[155px] absolute right-[-0px] bottom-[-5px]" />
