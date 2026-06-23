@@ -3,18 +3,18 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 const KAKAO_MAP_KEY = '6ec78b7a9b90b0f07dbb6708e5e9a5d7';
 
-const JobDetail = () => {
+const JobDetail = ({ bookmarks = {}, toggleBookmark }) => {
   const navigate = useNavigate();
   const { id: jobId } = useParams();
   const [job, setJob] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('주요업무');
-  const [bookmarked, setBookmarked] = useState(false);
   const [bookmarkLoading, setBookmarkLoading] = useState(false);
   const [recommendations, setRecommendations] = useState([]);
   const [alarmOpen, setAlarmOpen] = useState(false);
   const mapRef = useRef(null);
+  const bookmarked = !!bookmarks[jobId];
 
   useEffect(() => {
     const fetchJob = async () => {
@@ -86,25 +86,9 @@ const JobDetail = () => {
   }, [job]);
 
   const handleBookmark = async () => {
-    const token = localStorage.getItem('access_token');
-    if (!token) {
-      alert('로그인이 필요합니다.');
-      return;
-    }
     setBookmarkLoading(true);
     try {
-      const res = await fetch(`https://illoon.cloud/api/jobs/${jobId}/scrap`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-      if (!res.ok) throw new Error('스크랩 요청 실패');
-      setBookmarked(prev => !prev);
-    } catch (err) {
-      console.error(err);
-      alert('스크랩 처리 중 오류가 발생했어요.');
+      await toggleBookmark(jobId);
     } finally {
       setBookmarkLoading(false);
     }
@@ -147,7 +131,7 @@ const JobDetail = () => {
                 </>
               )}
             </div>
-            <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#EEF6FF', overflow: 'hidden', cursor: 'pointer' }}>
+            <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#EEF6FF', overflow: 'hidden', cursor: 'pointer' }} onClick={() => navigate('/bookmark')}>
               <img src="/my.png" alt="my" style={{ width: 32, height: 32, objectFit: 'cover' }} onError={e => e.target.style.display='none'} />
             </div>
           </div>

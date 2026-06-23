@@ -1,8 +1,31 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-const Home = ({ bookmarks, toggleBookmark, allJobs, setAllJobs }) => {
+function isTokenValid(token) {
+  if (!token) return false;
+  if (token === 'test-token-root') return true;
+  try {
+    // JWT uses base64url (- and _ instead of + and /), atob needs standard base64
+    const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    const payload = JSON.parse(atob(base64));
+    return !payload.exp || payload.exp * 1000 > Date.now();
+  } catch {
+    return true; // 파싱 실패 시 토큰 유지, 서버에서 판단하게 둠
+  }
+}
+
+const Home = ({ bookmarks, toggleBookmark }) => {
   const navigate = useNavigate();
+  const [allJobs, setAllJobs] = useState([]);
+  const [isLoggedIn, setIsLoggedIn] = useState(() => {
+    const token = localStorage.getItem('access_token');
+    if (!isTokenValid(token)) {
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('user_id');
+      return false;
+    }
+    return true;
+  });
   const [selectedRegion, setSelectedRegion] = useState('해운대구');
   const [searchQuery, setSearchQuery] = useState('');
   const [jobsLoading, setJobsLoading] = useState(true);
@@ -62,6 +85,7 @@ const Home = ({ bookmarks, toggleBookmark, allJobs, setAllJobs }) => {
     fetchJobs();
   }, [allJobs.length, setAllJobs]);
 
+  const [scrapStatus, setScrapStatus] = useState(null);
   const [recommendJobs, setRecommendJobs] = useState([]);
   const [topRecommendJobs, setTopRecommendJobs] = useState([]);
 
@@ -98,14 +122,27 @@ const Home = ({ bookmarks, toggleBookmark, allJobs, setAllJobs }) => {
     };
     fetchTopRecommendations();
   }, []);
-  
+
+  useEffect(() => {
+    const fetchScrapStatus = async () => {
+      try {
+        const token = localStorage.getItem('access_token');
+        const res = await fetch('https://illoon.cloud/api/scraps/status', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) return;
+        setScrapStatus(await res.json());
+      } catch (err) { console.error(err); }
+    };
+    fetchScrapStatus();
+  }, []);
 
   useEffect(() => {
     const fetchRegionJobs = async () => {
       setRegionJobsLoading(true);
       try {
         const token = localStorage.getItem('access_token');
-        const res = await fetch(`https://illoon.cloud/api/jobs?condition.location=${encodeURIComponent(selectedRegion)}&condition.page=0&condition.size=8`, {
+        const res = await fetch(`https://illoon.cloud/api/jobs?location=${encodeURIComponent(selectedRegion)}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (!res.ok) throw new Error();
@@ -137,7 +174,7 @@ const Home = ({ bookmarks, toggleBookmark, allJobs, setAllJobs }) => {
 
   const fetchJobsPage = async (pageNum) => {
     const token = localStorage.getItem('access_token');
-    const params = new URLSearchParams({ 'condition.page': pageNum, 'condition.size': 8 });
+    const params = new URLSearchParams({ page: pageNum, size: 8 });
     const res = await fetch(`https://illoon.cloud/api/jobs?${params.toString()}`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
@@ -184,7 +221,7 @@ const Home = ({ bookmarks, toggleBookmark, allJobs, setAllJobs }) => {
       const token = localStorage.getItem('access_token');
       await fetch('https://illoon.cloud/api/auth/logout', { method: 'POST', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } });
     } catch (err) { console.error(err); }
-    finally { localStorage.clear(); navigate('/login'); }
+    finally { localStorage.clear(); setIsLoggedIn(false); navigate('/login'); }
   };
 
   const sendChat = () => {
@@ -222,6 +259,23 @@ const Home = ({ bookmarks, toggleBookmark, allJobs, setAllJobs }) => {
   };
 
 
+  const PlatformLogo = ({ platform, company }) => {
+    const configs = {
+      wanted:   { bg: '#E8F4FF', color: '#2196F3' },
+      jobkorea: { bg: '#FFF0E8', color: '#FF6B2C' },
+      saramin:  { bg: '#E8F5E9', color: '#2E7D32' },
+    };
+    const c = configs[platform] || configs.wanted;
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ width: 28, height: 28, borderRadius: 6, background: c.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke={c.color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+        </div>
+        <span style={{ fontSize: 13, color: c.color, fontWeight: 700 }}>{company || ''}</span>
+      </div>
+    );
+  };
+
   const BookmarkIcon = ({ filled, white }) => (
     <svg width="16" height="16" viewBox="0 0 24 24"
       fill={filled ? (white ? '#fff' : '#2196F3') : 'none'}
@@ -232,11 +286,11 @@ const Home = ({ bookmarks, toggleBookmark, allJobs, setAllJobs }) => {
   );
 
 
-  const SmallJobCard = ({ id, title, company, meta }) => {
+  const SmallJobCard = ({ id, title, company, meta, platform }) => {
     return (
       <div className="job-card" onClick={() => handleJobClick(id)}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-          <span style={{ fontSize: 12, fontWeight: 600, color: '#4D5562' }}>{company}</span>
+          <PlatformLogo platform={platform || 'wanted'} company={company} />
           <div onClick={(e) => { e.stopPropagation(); toggleBookmark(id); }} style={{ cursor: 'pointer' }}><BookmarkIcon filled={!!bookmarks[id]} /></div>
         </div>
         <div style={{ fontSize: 14, fontWeight: 700, color: '#191F28', lineHeight: 1.5, marginBottom: 6 }}>{title}</div>
@@ -248,13 +302,15 @@ const Home = ({ bookmarks, toggleBookmark, allJobs, setAllJobs }) => {
     );
   };
 
-  const RegionJobCard = ({ id, title, company, meta }) => {
+  const RegionJobCard = ({ id, title, company, meta, platform }) => {
+    const platforms = { wanted: { bg: '#E8F4FF', color: '#2196F3' }, jobkorea: { bg: '#FFF0E8', color: '#FF6B2C' }, saramin: { bg: '#E8F5E9', color: '#2E7D32' } };
+    const p = platforms[platform] || platforms.wanted;
     const initial = company ? company.charAt(0) : '일';
     return (
       <div className="job-card" onClick={() => handleJobClick(id)} style={{ padding: '20px', borderRadius: 16 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{ width: 36, height: 36, borderRadius: 8, background: '#EEF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 800, color: '#2196F3', flexShrink: 0 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 8, background: p.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 800, color: p.color, flexShrink: 0 }}>
               {initial}
             </div>
             <span style={{ fontSize: 12, color: '#6B7684', fontWeight: 500 }}>{company}</span>
@@ -431,7 +487,7 @@ const Home = ({ bookmarks, toggleBookmark, allJobs, setAllJobs }) => {
           <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
             <span style={{ fontSize: 13, color: '#4D5562', cursor: 'pointer' }} onClick={() => navigate('/resume/manage')}>이력서 관리</span>
             <span style={{ fontSize: 13, color: '#4D5562', cursor: 'pointer' }} onClick={() => navigate('/bookmark')}>공고 모아보기</span>
-            {localStorage.getItem('access_token') ? (
+            {isLoggedIn ? (
               <span onClick={handleLogout} style={{ fontSize: 13, color: '#ADB5BD', cursor: 'pointer' }}>로그아웃</span>
             ) : (
               <span onClick={() => navigate('/login')} style={{ fontSize: 13, color: '#ADB5BD', cursor: 'pointer' }}>로그인</span>
@@ -532,11 +588,11 @@ const Home = ({ bookmarks, toggleBookmark, allJobs, setAllJobs }) => {
           <div style={{ fontSize: 15, fontWeight: 700, color: '#191F28', marginBottom: 12 }}>오늘의 스크랩 현황</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
             {[
-              { label: '새로운 공고', value: 5, color: '#2196F3', img: '/character3.png' },
-              { label: '마감 임박 공고', value: 2, color: '#FF6B6B', img: '/character4.png' },
-              { label: '전체 스크랩', value: Object.values(bookmarks).filter(Boolean).length, color: '#191F28', img: '/character5.png' },
+              { label: '새로운 공고', value: scrapStatus?.newJobsCount ?? '-', color: '#2196F3', img: '/character3.png', filter: 'new' },
+              { label: '마감 임박 공고', value: scrapStatus?.expiringJobsCount ?? '-', color: '#FF6B6B', img: '/character4.png', filter: 'deadline' },
+              { label: '전체 스크랩', value: scrapStatus?.totalScrapsCount ?? Object.values(bookmarks).filter(Boolean).length, color: '#191F28', img: '/character5.png', filter: 'all' },
             ].map((item, i) => (
-              <div key={i} onClick={() => navigate('/bookmark')} style={{ background: '#fff', borderRadius: 14, padding: '16px 18px', border: '1px solid #F2F4F7', boxShadow: '0 1px 4px rgba(0,0,0,0.04)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}>
+              <div key={i} onClick={() => navigate('/bookmark?filter=' + item.filter)} style={{ background: '#fff', borderRadius: 14, padding: '16px 18px', border: '1px solid #F2F4F7', boxShadow: '0 1px 4px rgba(0,0,0,0.04)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}>
                 <div>
                   <div style={{ fontSize: 12, color: '#6B7684', marginBottom: 6 }}>{item.label}</div>
                   <div style={{ fontSize: 26, fontWeight: 800, color: item.color }}>{item.value}</div>
@@ -551,15 +607,19 @@ const Home = ({ bookmarks, toggleBookmark, allJobs, setAllJobs }) => {
         <div style={{ marginBottom: 24 }}>
           <div style={{ fontSize: 15, fontWeight: 700, color: '#191F28', marginBottom: 12 }}>일리온이 추천하는 공고! 놓치지 마세요!</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, alignItems: 'start' }}>
-            {(recommendJobs.length > 0 ? recommendJobs.slice(0, 6) : Array(6).fill(null)).map((job, i) => (
-              <SmallJobCard
-                key={job?.jobId ?? i}
-                id={job?.jobId ?? `illione-${i}`}
-                title={job?.title ?? '불러오는 중...'}
-                company={job?.company ?? ''}
-                meta={job ? `${job.company ?? ''} · ${job.location ?? ''}`.trim() : ''}
-              />
-            ))}
+            {(() => {
+              const platforms = ['wanted', 'jobkorea', 'saramin'];
+              return (recommendJobs.length > 0 ? recommendJobs.slice(0, 6) : Array(6).fill(null)).map((job, i) => (
+                <SmallJobCard
+                  key={job?.jobId ?? i}
+                  id={job?.jobId ?? `illione-${i}`}
+                  title={job?.title ?? '불러오는 중...'}
+                  company={job?.company ?? ''}
+                  meta={job?.location ?? ''}
+                  platform={platforms[i % 3]}
+                />
+              ));
+            })()}
           </div>
         </div>
 
@@ -651,7 +711,7 @@ const Home = ({ bookmarks, toggleBookmark, allJobs, setAllJobs }) => {
             <div style={{ textAlign: 'center', padding: 40, color: '#ADB5BD' }}>불러오는 중...</div>
           ) : regionJobs.length > 0 ? (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
-              {regionJobs.map((job) => <RegionJobCard key={job.id} id={job.id} title={job.title} company={job.company} meta={job.location} />)}
+              {regionJobs.map((job, i) => <RegionJobCard key={job.id} id={job.id} title={job.title} company={job.company} meta={job.location} platform={['wanted','jobkorea','saramin'][i % 3]} />)}
             </div>
           ) : (
             <div style={{ textAlign: 'center', padding: 30, color: '#ADB5BD', fontSize: 14 }}>해당 지역 공고가 없어요.</div>
@@ -666,7 +726,7 @@ const Home = ({ bookmarks, toggleBookmark, allJobs, setAllJobs }) => {
           ) : allJobs.length > 0 ? (
             <>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
-                {allJobs.map((job, i) => <SmallJobCard key={`${job.id}-${i}`} id={job.id} title={job.title} company={job.company ?? ''} meta={`${job.company} · ${job.location}`} />)}
+                {allJobs.map((job, i) => <SmallJobCard key={`${job.id}-${i}`} id={job.id} title={job.title} company={job.company ?? ''} meta={job.location ?? ''} platform={['wanted','jobkorea','saramin'][i % 3]} />)}
               </div>
               {hasMore && (
                 <div ref={observerRef} style={{ textAlign: 'center', padding: 20, color: '#ADB5BD', fontSize: 13 }}>

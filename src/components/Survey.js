@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 
 const Survey = () => {
@@ -31,31 +30,33 @@ const Survey = () => {
     try {
       // 1. 설문 데이터 저장 - 실패해도 2번은 무조건 호출
       try {
-        await axios.post(
+        await fetch(
           `https://port-0-illo-on-server-mp2oa3fkd20c6566.sel3.cloudtype.app/api/v1/survey/${user_id}`,
           {
-            job_type: selectedTags.length > 0 ? selectedTags.join(', ') : answer,
-            region: selectedRegions.join(', '),
-            occupation: selectedJob || '',
-            career_type: selectedCareer || '',
-            education: education || '',
-            university: schoolName || null,
-            major: major || null,
-            career_years: careerYear || null,
-            company_name: company || null,
-          },
-          { headers: { Authorization: `Bearer ${token}` } }
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({
+              job_type: selectedTags.length > 0 ? selectedTags.join(', ') : answer,
+              region: selectedRegions.join(', '),
+              occupation: selectedJob || '',
+              career_type: selectedCareer || '',
+              education: education || '',
+              university: schoolName || null,
+              major: major || null,
+              career_years: careerYear || null,
+              company_name: company || null,
+            }),
+          }
         );
       } catch (err) {
         console.error('설문 데이터 저장 실패:', err);
       }
 
       // 2. 설문 완료 API - 무조건 호출
-      await axios.post(
-        'https://illoon.cloud/api/survey/complete',
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await fetch('https://illoon.cloud/api/survey/complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      });
 
       localStorage.setItem(`survey_done_${user_id}`, 'true');
     } catch (err) {

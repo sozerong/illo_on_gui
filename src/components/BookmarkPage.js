@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 const BookmarkPage = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [activeFilter, setActiveFilter] = useState(searchParams.get('filter') || 'all');
   const [hoveredCard, setHoveredCard] = useState(null);
   const [alarmOpen, setAlarmOpen] = useState(false);
   const [profile, setProfile] = useState(null);
@@ -12,6 +14,33 @@ const BookmarkPage = () => {
   const [totalPages, setTotalPages] = useState(0);
   const [scrapStatus, setScrapStatus] = useState(null);
   const PAGE_SIZE = 6;
+
+  useEffect(() => {
+    const f = searchParams.get('filter') || 'all';
+    setActiveFilter(f);
+  }, [searchParams]);
+
+  const handleFilterChange = (f) => {
+    setActiveFilter(f);
+    setSearchParams({ filter: f });
+  };
+
+  const NOW = Date.now();
+  const DAY_MS = 86400000;
+  const filteredJobs = scrapJobs.filter((job) => {
+    if (activeFilter === 'new') {
+      const posted = job.postedAt || job.createdAt || job.registeredAt;
+      if (!posted) return false;
+      return NOW - new Date(posted).getTime() <= 3 * DAY_MS;
+    }
+    if (activeFilter === 'deadline') {
+      const end = job.deadline || job.expiresAt || job.endDate || job.closingDate;
+      if (!end) return false;
+      const diff = new Date(end).getTime() - NOW;
+      return diff >= 0 && diff <= 2 * DAY_MS;
+    }
+    return true;
+  });
 
   const fetchMyPage = async (page = 0) => {
     setScrapLoading(true);
@@ -141,18 +170,19 @@ const BookmarkPage = () => {
         <div style={{ marginBottom: 40 }}>
           <div style={{ fontSize: 18, fontWeight: 800, color: '#191F28', marginBottom: 16 }}>오늘의 스크랩 현황</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
-            <div style={{ background: '#F8FAFC', borderRadius: 16, padding: '20px 24px', border: '1px solid #F2F4F7' }}>
-              <div style={{ fontSize: 13, color: '#6B7684', marginBottom: 8 }}>새로운 공고</div>
-              <div style={{ fontSize: 28, fontWeight: 800, color: '#2196F3' }}>{scrapStatus?.newJobsCount ?? '-'}</div>
-            </div>
-            <div style={{ background: '#F8FAFC', borderRadius: 16, padding: '20px 24px', border: '1px solid #F2F4F7' }}>
-              <div style={{ fontSize: 13, color: '#6B7684', marginBottom: 8 }}>마감 임박 공고</div>
-              <div style={{ fontSize: 28, fontWeight: 800, color: '#F04438' }}>{scrapStatus?.expiringJobsCount ?? '-'}</div>
-            </div>
-            <div style={{ background: '#F8FAFC', borderRadius: 16, padding: '20px 24px', border: '1px solid #F2F4F7' }}>
-              <div style={{ fontSize: 13, color: '#6B7684', marginBottom: 8 }}>전체 스크랩</div>
-              <div style={{ fontSize: 28, fontWeight: 800, color: '#191F28' }}>{scrapStatus?.totalScrapsCount ?? '-'}</div>
-            </div>
+            {[
+              { label: '새로운 공고', count: scrapStatus?.newJobsCount ?? '-', color: '#2196F3', filter: 'new' },
+              { label: '마감 임박 공고', count: scrapStatus?.expiringJobsCount ?? '-', color: '#F04438', filter: 'deadline' },
+              { label: '전체 스크랩', count: scrapStatus?.totalScrapsCount ?? '-', color: '#191F28', filter: 'all' },
+            ].map((item) => (
+              <div
+                key={item.filter}
+                onClick={() => handleFilterChange(item.filter)}
+                style={{ background: activeFilter === item.filter ? '#EEF6FF' : '#F8FAFC', borderRadius: 16, padding: '20px 24px', border: `1px solid ${activeFilter === item.filter ? '#2196F3' : '#F2F4F7'}`, cursor: 'pointer', transition: 'all 0.15s' }}>
+                <div style={{ fontSize: 13, color: '#6B7684', marginBottom: 8 }}>{item.label}</div>
+                <div style={{ fontSize: 28, fontWeight: 800, color: item.color }}>{item.count}</div>
+              </div>
+            ))}
           </div>
         </div>
 
@@ -162,7 +192,7 @@ const BookmarkPage = () => {
 
           {scrapLoading ? (
             <div style={{ textAlign: 'center', padding: '60px 0', color: '#ADB5BD', fontSize: 14 }}>불러오는 중...</div>
-          ) : scrapJobs.length === 0 ? (
+          ) : filteredJobs.length === 0 ? (
             <div style={{ background: '#F8FAFC', borderRadius: 20, padding: '60px 20px', textAlign: 'center', border: '1px solid #F2F4F7' }}>
               <div style={{ width: 60, height: 60, borderRadius: '50%', background: '#EEF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2196F3" strokeWidth="1.8" strokeLinecap="round">
@@ -180,7 +210,7 @@ const BookmarkPage = () => {
             <>
               <div style={{ background: '#F8FAFC', borderRadius: 20, padding: '24px', border: '1px solid #F2F4F7' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
-                  {scrapJobs.map((job) => {
+                  {filteredJobs.map((job) => {
                     const isHovered = hoveredCard === job.jobId;
                     return (
                       <div

@@ -15,7 +15,7 @@ const SearchResult = ({ bookmarks, toggleBookmark }) => {
 
   const fetchJobsPage = async (pageNum, keyword) => {
     const token = localStorage.getItem('access_token');
-    const params = new URLSearchParams({ 'condition.keyword': keyword, 'condition.page': pageNum, 'condition.size': 8 });
+    const params = new URLSearchParams({ keyword: keyword, page: pageNum, size: 8 });
     const res = await fetch(`https://illoon.cloud/api/jobs?${params.toString()}`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
@@ -97,15 +97,33 @@ const SearchResult = ({ bookmarks, toggleBookmark }) => {
     }
   };
 
+  const PlatformLogo = ({ platform, company }) => {
+    const configs = {
+      wanted:   { bg: '#E8F4FF', color: '#2196F3' },
+      jobkorea: { bg: '#FFF0E8', color: '#FF6B2C' },
+      saramin:  { bg: '#E8F5E9', color: '#2E7D32' },
+    };
+    const c = configs[platform] || configs.wanted;
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ width: 28, height: 28, borderRadius: 6, background: c.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke={c.color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+        </div>
+        <span style={{ fontSize: 13, color: c.color, fontWeight: 700 }}>{company || ''}</span>
+      </div>
+    );
+  };
+
   const BookmarkIcon = ({ filled }) => (
     <svg width="18" height="18" viewBox="0 0 24 24" fill={filled ? '#2196F3' : 'none'} stroke={filled ? '#2196F3' : '#ADB5BD'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
     </svg>
   );
 
-  const JobCard = ({ id, title, meta }) => (
+  const JobCard = ({ id, title, meta, platform, company }) => (
     <div className="job-card" onClick={() => handleJobClick(id)}>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'flex-start', marginBottom: 12 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+        <PlatformLogo platform={platform || 'wanted'} company={company} />
         <div onClick={(e) => { e.stopPropagation(); toggleBookmark(id); }} style={{ cursor: 'pointer' }}><BookmarkIcon filled={!!bookmarks[id]} /></div>
       </div>
       <div style={{ fontSize: 14, fontWeight: 700, color: '#191F28', lineHeight: 1.5, marginBottom: 6 }}>{title}</div>
@@ -173,7 +191,7 @@ const SearchResult = ({ bookmarks, toggleBookmark }) => {
           <>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
               {jobs.map((job, i) => (
-                <JobCard key={`${job.id}-${i}`} id={job.id} title={job.title} meta={`${job.company} · ${job.location}`} />
+                <JobCard key={`${job.id}-${i}`} id={job.id} title={job.title} company={job.company} meta={job.location} platform={['wanted','jobkorea','saramin'][i % 3]} />
               ))}
             </div>
             {hasMore && (

@@ -1,43 +1,17 @@
 import React, { useState } from 'react';
-import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import PhoneVerifyBlock from './PhoneVerifyBlock';
 
 const SignUp = () => {
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [isVerified, setIsVerified] = useState(false);
-  const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [verificationId, setVerificationId] = useState('');
   const [agreements, setAgreements] = useState({
     all: false, term1: false, term2: false, term3: false, term4: false,
   });
-
-  // 포트원 V2 휴대폰 인증
-  const handleVerifyRequest = async () => {
-    if (phone.length < 10) {
-      alert("핸드폰 번호를 입력해주세요.");
-      return;
-    }
-    try {
-      const response = await window.PortOne.requestIdentityVerification({
-        storeId: "store-2b359459-0d4c-42ce-ad4c-0f42ce8d8ab8",
-        channelKey: "channel-key-fc7388b4-4a49-45d3-b282-aec1fa7f222d",
-        identityVerificationId: `verify-${Date.now()}`,
-        verificationRequest: { phoneNumber: phone },
-      });
-      if (response.code) {
-        alert(`본인인증 실패: ${response.message}`);
-      } else {
-        setVerificationId(response.identityVerificationId);
-        setIsVerified(true);
-      }
-    } catch (err) {
-      console.error(err);
-      alert('본인인증 중 오류가 발생했어요.');
-    }
-  };
 
   const handleToggle = (key) => {
     setAgreements(prev => {
@@ -54,17 +28,17 @@ const SignUp = () => {
 
   const isSubmitEnabled = agreements.term1 && isVerified;
 
-  // 이메일 회원가입만 - email, password, verificationId
   const handleSubmit = async () => {
     try {
-      const response = await axios.post('https://illoon.cloud/api/auth/signup/email', {
-        email: email,
-        password: password,
-        verificationId: verificationId,
+      const response = await fetch('https://illoon.cloud/api/auth/signup/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, verificationId }),
       });
-      if (response.status === 200 || response.status === 201) {
-        if (response.data.accessToken) localStorage.setItem('access_token', response.data.accessToken);
-        if (response.data.userId) localStorage.setItem('user_id', String(response.data.userId));
+      if (response.ok) {
+        const data = await response.json();
+        if (data.accessToken) localStorage.setItem('access_token', data.accessToken);
+        if (data.userId) localStorage.setItem('user_id', String(data.userId));
         navigate('/survey');
       }
     } catch (error) {
@@ -109,25 +83,7 @@ const SignUp = () => {
         </div>
 
         {/* 휴대폰 인증 */}
-        <div className="space-y-2.5">
-          <label className="text-[15px] font-bold text-[#333]">휴대폰</label>
-          {!isVerified ? (
-            <div className="space-y-2.5">
-              <input type="text" value={phone} onChange={(e) => setPhone(e.target.value)}
-                placeholder="핸드폰 번호를 입력해주세요."
-                className="w-full h-[56px] px-5 bg-[#F2F4F7] rounded-[12px] outline-none" />
-              <button onClick={handleVerifyRequest}
-                className="w-full h-[56px] bg-[#2196F3] text-white font-bold rounded-[12px]">
-                인증요청
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <div className="w-full h-[56px] px-5 bg-[#F2F4F7] rounded-[12px] flex items-center">{phone}</div>
-              <p className="text-[13px] text-[#8B95A1]">인증이 완료되었습니다.</p>
-            </div>
-          )}
-        </div>
+        <PhoneVerifyBlock onVerified={(vid) => { setVerificationId(vid); setIsVerified(true); }} />
 
         {/* 약관 동의 */}
         <div className="pt-2 space-y-4">

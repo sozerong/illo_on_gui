@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 
 const Login = () => {
@@ -18,21 +17,22 @@ const Login = () => {
     }
     setIsLoading(true);
     try {
-      const response = await axios.post('https://illoon.cloud/api/auth/login', {
-        email: email,
-        password: password
+      const response = await fetch('https://illoon.cloud/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
       });
-
-      if (response.status === 200) {
-        const { userId, accessToken, surveyCompleted } = response.data;
+      if (response.ok) {
+        const { userId, accessToken, surveyCompleted } = await response.json();
         localStorage.setItem('user_id', userId);
         localStorage.setItem('access_token', accessToken);
-
         if (surveyCompleted) {
           navigate('/home');
         } else {
           navigate('/survey');
         }
+      } else {
+        throw new Error('login failed');
       }
     } catch (error) {
       console.error(error);

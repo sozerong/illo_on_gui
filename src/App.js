@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import Header from './components/Header';
 import Footer from './components/Footer';
@@ -13,10 +13,6 @@ import Home from './components/Home';
 import JobDetail from './components/JobDetail';
 import BookmarkPage from './components/BookmarkPage';
 import SearchResult from './components/SearchResult';
-
-function RootRedirect() {
-  return <Navigate to="/home" replace />;
-}
 
 function ProtectedRoute({ children }) {
   const token = localStorage.getItem('access_token');
@@ -40,8 +36,36 @@ function MainLayout({ showFooter }) {
 }
 
 export default function App() {
-  const [bookmarks, setBookmarks] = useState({});
-  const [allJobs, setAllJobs] = useState([]);
+  const [bookmarks, setBookmarks] = useState(() => {
+    try {
+      const saved = localStorage.getItem('bookmarks');
+      return saved ? JSON.parse(saved) : {};
+    } catch { return {}; }
+  });
+
+  useEffect(() => {
+    const token = localStorage.getItem('access_token');
+    if (!token) return;
+    const syncScraps = async () => {
+      try {
+        const res = await fetch('https://illoon.cloud/api/mypage?page=0&size=200', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        const jobs = data.scrapedJobs?.content ?? [];
+        if (jobs.length === 0) return;
+        const map = {};
+        jobs.forEach(j => { map[j.jobId] = true; });
+        setBookmarks(prev => {
+          const next = { ...prev, ...map };
+          localStorage.setItem('bookmarks', JSON.stringify(next));
+          return next;
+        });
+      } catch (err) { console.error(err); }
+    };
+    syncScraps();
+  }, []);
 
   const toggleBookmark = async (id) => {
     if (String(id).startsWith('rec-') || String(id).startsWith('illione-') || String(id).startsWith('featured-') || String(id).startsWith('region-') || String(id).startsWith('all-')) return;
@@ -60,7 +84,11 @@ export default function App() {
         },
       });
       if (!res.ok) throw new Error('스크랩 요청 실패');
-      setBookmarks(prev => ({ ...prev, [id]: !prev[id] }));
+      setBookmarks(prev => {
+        const next = { ...prev, [id]: !prev[id] };
+        localStorage.setItem('bookmarks', JSON.stringify(next));
+        return next;
+      });
     } catch (err) {
       console.error(err);
       alert('스크랩 처리 중 오류가 발생했어요.');
@@ -69,7 +97,7 @@ export default function App() {
 
   return (
     <Routes>
-      <Route path="/" element={<RootRedirect />} />
+      <Route path="/" element={<Navigate to="/home" replace />} />
 
       {/* Header + Footer */}
       <Route element={<MainLayout showFooter={true} />}>
@@ -91,11 +119,9 @@ export default function App() {
         <Home
           bookmarks={bookmarks}
           toggleBookmark={toggleBookmark}
-          allJobs={allJobs}
-          setAllJobs={setAllJobs}
         />
       } />
-      <Route path="/job/:id" element={<JobDetail />} />
+      <Route path="/job/:id" element={<JobDetail bookmarks={bookmarks} toggleBookmark={toggleBookmark} />} />
       <Route path="/search" element={
         <SearchResult bookmarks={bookmarks} toggleBookmark={toggleBookmark} />
       } />
