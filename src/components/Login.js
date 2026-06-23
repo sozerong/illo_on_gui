@@ -23,8 +23,10 @@ const Login = () => {
         body: JSON.stringify({ email, password }),
       });
       if (response.ok) {
-        const { userId, accessToken, surveyCompleted } = await response.json();
-        localStorage.setItem('user_id', userId);
+        const data = await response.json();
+        const { userId, accessToken } = data;
+        const surveyCompleted = data.surveyCompleted ?? data.survey_completed ?? true;
+        localStorage.setItem('user_id', String(userId ?? ''));
         localStorage.setItem('access_token', accessToken);
         if (surveyCompleted) {
           navigate('/home');
@@ -59,6 +61,7 @@ const Login = () => {
           type="text"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
           placeholder="이메일을 입력해주세요."
           className="w-full h-[56px] px-5 bg-[#F3F4F8] rounded-[12px] outline-none placeholder:text-[#ADB5BD]"
         />
@@ -67,6 +70,7 @@ const Login = () => {
             type={showPassword ? 'text' : 'password'}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
             placeholder="비밀번호를 입력해주세요."
             className="w-full h-[56px] px-5 bg-[#F3F4F8] rounded-[12px] outline-none placeholder:text-[#ADB5BD]"
           />

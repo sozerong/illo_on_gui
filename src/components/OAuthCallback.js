@@ -34,7 +34,8 @@ const OAuthCallback = () => {
 
     if (isNewUserParam === 'false') {
       try {
-        const payload = JSON.parse(atob(tokenParam.split('.')[1]));
+        const b64 = tokenParam.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+        const payload = JSON.parse(atob(b64));
         if (payload.sub) localStorage.setItem('user_id', payload.sub);
       } catch (e) {}
       navigate('/home');

@@ -86,6 +86,7 @@ const Home = ({ bookmarks, toggleBookmark }) => {
   }, [allJobs.length, setAllJobs]);
 
   const [scrapStatus, setScrapStatus] = useState(null);
+  const [userName, setUserName] = useState('');
   const [recommendJobs, setRecommendJobs] = useState([]);
   const [topRecommendJobs, setTopRecommendJobs] = useState([]);
 
@@ -124,16 +125,29 @@ const Home = ({ bookmarks, toggleBookmark }) => {
   }, []);
 
   useEffect(() => {
+    const token = localStorage.getItem('access_token');
+    if (!token) return;
+    const fetchUserInfo = async () => {
+      try {
+        const res = await fetch('https://illoon.cloud/api/mypage?page=0&size=1', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.profile?.name) setUserName(data.profile.name);
+      } catch (err) { console.error(err); }
+    };
     const fetchScrapStatus = async () => {
       try {
-        const token = localStorage.getItem('access_token');
+        const token2 = localStorage.getItem('access_token');
         const res = await fetch('https://illoon.cloud/api/scraps/status', {
-          headers: { 'Authorization': `Bearer ${token}` }
+          headers: { 'Authorization': `Bearer ${token2}` }
         });
         if (!res.ok) return;
         setScrapStatus(await res.json());
       } catch (err) { console.error(err); }
     };
+    fetchUserInfo();
     fetchScrapStatus();
   }, []);
 
@@ -539,7 +553,7 @@ const Home = ({ bookmarks, toggleBookmark }) => {
         <div style={{ display: 'flex', gap: 20, marginBottom: 24, alignItems: 'stretch' }}>
           <div style={{ width: 280, flexShrink: 0 }}>
             <div style={{ marginBottom: 10 }}>
-              <div style={{ fontSize: 14, fontWeight: 700, color: '#191F28' }}><span style={{ color: '#2196F3' }}>김여주</span> 님!</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: '#191F28' }}><span style={{ color: '#2196F3' }}>{userName || '안녕하세요'}</span> 님!</div>
               <div style={{ fontSize: 13, fontWeight: 600, color: '#191F28' }}>취업하러 이리와봐유 🔥</div>
             </div>
             <div style={{ background: 'linear-gradient(150deg, #2196F3 0%, #42A5F5 60%, #90CAF9 100%)', borderRadius: 18, padding: '22px 20px 0 20px', color: '#fff', position: 'relative', overflow: 'hidden', minHeight: 340 }}>
@@ -552,7 +566,7 @@ const Home = ({ bookmarks, toggleBookmark }) => {
           </div>
           <div style={{ flex: 1, minWidth: 0, background: '#F9FAFF', borderRadius: 18, padding: '20px 28px', display: 'flex', flexDirection: 'column' }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: '#191F28', marginBottom: 20 }}>
-              <span style={{ color: '#2196F3' }}>김여주</span> 님을 위한 추천 공고!
+              <span style={{ color: '#2196F3' }}>{userName || '회원'}</span> 님을 위한 추천 공고!
             </div>
             <div style={{ flex: 1, position: 'relative', display: 'flex', alignItems: 'center' }}>
               <button onClick={scrollLeft} style={{ position: 'absolute', left: -18, top: '50%', transform: 'translateY(-50%)', zIndex: 10, width: 34, height: 34, borderRadius: '50%', background: '#fff', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
@@ -629,8 +643,8 @@ const Home = ({ bookmarks, toggleBookmark }) => {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {[
-                { role: 'Product Designer', score: 70, date: '18일 목요일', note: '김여주 님이 부족한 부분', skills: ['UX Research', 'Figma'] },
-                { role: 'UX/UI Designer', score: 40, date: '18일 목요일', note: '김여주 님이 부족한 부분', skills: ['Design skill', '그냥 다'] },
+                { role: 'Product Designer', score: 70, date: '18일 목요일', note: '부족한 부분', skills: ['UX Research', 'Figma'] },
+                { role: 'UX/UI Designer', score: 40, date: '18일 목요일', note: '부족한 부분', skills: ['Design skill', '그냥 다'] },
               ].map((item, i) => (
                 <div key={i} style={{ background: '#F8FAFC', borderRadius: 14, padding: '16px 20px', border: '1px solid #F2F4F7' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
