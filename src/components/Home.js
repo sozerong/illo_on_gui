@@ -553,7 +553,7 @@ const Home = ({ bookmarks, toggleBookmark }) => {
         <div style={{ display: 'flex', gap: 20, marginBottom: 24, alignItems: 'stretch' }}>
           <div style={{ width: 280, flexShrink: 0 }}>
             <div style={{ marginBottom: 10 }}>
-              <div style={{ fontSize: 14, fontWeight: 700, color: '#191F28' }}><span style={{ color: '#2196F3' }}>{userName || '안녕하세요'}</span> 님!</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: '#191F28' }}><span style={{ color: '#2196F3' }}>{userName ? `${userName}` : '안녕하세요 ㅇㅇ'}</span> 님!</div>
               <div style={{ fontSize: 13, fontWeight: 600, color: '#191F28' }}>취업하러 이리와봐유 🔥</div>
             </div>
             <div style={{ background: 'linear-gradient(150deg, #2196F3 0%, #42A5F5 60%, #90CAF9 100%)', borderRadius: 18, padding: '22px 20px 0 20px', color: '#fff', position: 'relative', overflow: 'hidden', minHeight: 340 }}>
@@ -566,7 +566,7 @@ const Home = ({ bookmarks, toggleBookmark }) => {
           </div>
           <div style={{ flex: 1, minWidth: 0, background: '#F9FAFF', borderRadius: 18, padding: '20px 28px', display: 'flex', flexDirection: 'column' }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: '#191F28', marginBottom: 20 }}>
-              <span style={{ color: '#2196F3' }}>{userName || '회원'}</span> 님을 위한 추천 공고!
+              <span style={{ color: '#2196F3' }}>{userName || 'ㅇㅇ'}</span> 님을 위한 추천 공고!
             </div>
             <div style={{ flex: 1, position: 'relative', display: 'flex', alignItems: 'center' }}>
               <button onClick={scrollLeft} style={{ position: 'absolute', left: -18, top: '50%', transform: 'translateY(-50%)', zIndex: 10, width: 34, height: 34, borderRadius: '50%', background: '#fff', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>

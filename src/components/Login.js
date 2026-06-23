@@ -19,7 +19,11 @@ const Login = () => {
     try {
       const response = await fetch('https://illoon.cloud/api/auth/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        credentials: 'include',
         body: JSON.stringify({ email, password }),
       });
       if (response.ok) {
@@ -34,11 +38,14 @@ const Login = () => {
           navigate('/survey');
         }
       } else {
-        throw new Error('login failed');
+        let msg = `서버 오류 (${response.status})`;
+        try { const err = await response.json(); msg = err.message || err.error || msg; } catch {}
+        console.error('Login failed:', response.status, msg);
+        throw new Error(msg);
       }
     } catch (error) {
       console.error(error);
-      alert('로그인 실패! 이메일이나 비밀번호를 확인해 주세요.');
+      alert(`로그인 실패: ${error.message}`);
     } finally {
       setIsLoading(false);
     }
